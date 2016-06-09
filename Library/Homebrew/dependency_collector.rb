@@ -162,6 +162,8 @@ class DependencyCollector
       Dependency.new("bazaar", tags)
     elsif strategy <= CVSDownloadStrategy
       Dependency.new("cvs", tags) if MacOS.version >= :mavericks || !MacOS::Xcode.provides_cvs?
+    elsif strategy <= SubversionDownloadStrategy
+      SubversionRequirement.new(tags)
     elsif strategy < AbstractDownloadStrategy
       # allow unknown strategies to pass through
     else

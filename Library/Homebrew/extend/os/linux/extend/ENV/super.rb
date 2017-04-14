@@ -6,11 +6,22 @@ module Superenv
     (HOMEBREW_SHIMS_PATH/"linux/super").realpath
   end
 
+  def self.xorg_recursive_deps
+    opoo "xorg_recursive_deps"
+    if self["xorg_formulae"].nil?
+      if x11_installed?
+        xorg = Formula["linuxbrew/xorg/xorg"]
+        self["xorg_formulae"] = xorg.recursive_dependencies
+      end
+    end
+    self["xorg_formulae"]
+  end
+
   def homebrew_extra_paths
     paths = []
     binutils = Formula["binutils"]
     paths << binutils.opt_bin if binutils.installed?
-    paths += self["xorg_formulae"].map(&:opt_bin) if x11?
+    paths += xorg_recursive_deps.map(&:opt_bin) if x11?
     paths
   rescue FormulaUnavailableError
     # Fix for brew tests, which uses NullLoader.
@@ -28,8 +39,8 @@ module Superenv
   def homebrew_extra_pkg_config_paths
     paths = []
     if x11?
-      libs = self["xorg_formulae"].map(&:lib)
-      shares = self["xorg_formulae"].map(&:share)
+      libs = xorg_recursive_deps.map(&:lib)
+      shares = xorg_recursive_deps.map(&:share)
       libs.each do |l|
         paths << l/"pkgconfig"
       end
@@ -43,7 +54,7 @@ module Superenv
   def homebrew_extra_aclocal_paths
     paths = []
     if x11?
-      shares = self["xorg_formulae"].map(&:share)
+      shares = xorg_recursive_deps.map(&:share)
       shares.each do |s|
         paths << s/"aclocal"
       end
@@ -52,11 +63,11 @@ module Superenv
   end
 
   def self.x11_include_paths
-    self["xorg_formulae"].map(&:include).map(&:to_s)
+    xorg_recursive_deps.map(&:include).map(&:to_s)
   end
 
   def self.x11_lib_paths
-    self["xorg_formulae"].map(&:lib).map(&:to_s)
+    xorg_recursive_deps.map(&:lib).map(&:to_s)
   end
 
   def homebrew_extra_isystem_paths
@@ -84,12 +95,13 @@ module Superenv
   end
 
   def set_x11_env_if_installed
+    ENV.x11 = x11_installed?
+  end
+
+  def self.x11_installed?
     xorg = Formula["linuxbrew/xorg/xorg"]
-    if xorg.installed?
-      self["xorg_formulae"] = xorg.recursive_dependencies.map(&:to_formula)
-      ENV.x11 = true
-    end
+    return xorg.installed?
   rescue FormulaUnavailableError
-    ENV.x11 = false
+    false
   end
 end

@@ -1,4 +1,6 @@
 module Superenv
+  alias x11? x11
+
   # @private
   def self.bin
     (HOMEBREW_SHIMS_PATH/"linux/super").realpath
@@ -8,6 +10,7 @@ module Superenv
     paths = []
     binutils = Formula["binutils"]
     paths << binutils.opt_bin if binutils.installed?
+    paths += self["xorg_formulae"].map(&:opt_bin) if x11?
     paths
   rescue FormulaUnavailableError
     # Fix for brew tests, which uses NullLoader.
@@ -21,24 +24,72 @@ module Superenv
     paths.to_path_s
   end
 
-  def x11
-    xorg = Formula["linuxbrew/xorg/xorg"]
-    if xorg.installed?
-      xorg.recursive_dependencies.each do |d|
-        dep_formula = d.to_formula
-        append_path "PKG_CONFIG_LIBDIR", dep_formula.lib/"pkgconfig"
-        append_path "PKG_CONFIG_LIBDIR", dep_formula.share/"pkgconfig"
-
-        append "LDFLAGS", "-L#{dep_formula.lib}"
-        append_path "CMAKE_PREFIX_PATH", dep_formula.prefix.to_s
-        append_path "CMAKE_INCLUDE_PATH", dep_formula.include.to_s
-
-        append "CPPFLAGS", "-I#{dep_formula.include}"
-
-        append_path "ACLOCAL_PATH", dep_formula.share/"aclocal"
+  # @private
+  def homebrew_extra_pkg_config_paths
+    paths = []
+    if x11?
+      libs = self["xorg_formulae"].map(&:lib)
+      shares = self["xorg_formulae"].map(&:share)
+      libs.each do |l|
+        paths << l/"pkgconfig"
+      end
+      shares.each do |s|
+        paths << s/"pkgconfig"
       end
     end
+    paths
+  end
+
+  def homebrew_extra_aclocal_paths
+    paths = []
+    if x11?
+      shares = self["xorg_formulae"].map(&:share)
+      shares.each do |s|
+        paths << s/"aclocal"
+      end
+    end
+    paths
+  end
+
+  def self.x11_include_paths
+    self["xorg_formulae"].map(&:include).map(&:to_s)
+  end
+
+  def self.x11_lib_paths
+    self["xorg_formulae"].map(&:lib).map(&:to_s)
+  end
+
+  def homebrew_extra_isystem_paths
+    paths = []
+    paths += x11_include_paths if x11?
+    paths
+  end
+
+  def homebrew_extra_library_paths
+    paths = []
+    paths += x11_lib_paths if x11?
+    paths
+  end
+
+  def homebrew_extra_cmake_include_paths
+    paths = []
+    paths += x11_include_paths if x11?
+    paths
+  end
+
+  def homebrew_extra_cmake_library_paths
+    paths = []
+    paths += x11_lib_paths if x11?
+    paths
+  end
+
+  def set_x11_env_if_installed
+    xorg = Formula["linuxbrew/xorg/xorg"]
+    if xorg.installed?
+      self["xorg_formulae"] = xorg.recursive_dependencies.map(&:to_formula)
+      ENV.x11 = true
+    end
   rescue FormulaUnavailableError
-    false
+    ENV.x11 = false
   end
 end

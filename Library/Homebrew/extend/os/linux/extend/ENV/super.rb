@@ -6,15 +6,15 @@ module Superenv
     (HOMEBREW_SHIMS_PATH/"linux/super").realpath
   end
 
-  def self.xorg_recursive_deps
-    opoo "xorg_recursive_deps"
-    if self["xorg_formulae"].nil?
-      if x11_installed?
-        xorg = Formula["linuxbrew/xorg/xorg"]
-        self["xorg_formulae"] = xorg.recursive_dependencies
-      end
+  def xorg_recursive_deps
+    # FIXME: how do I cache this???
+    if x11_installed?
+      Formula["linuxbrew/xorg/xorg"].recursive_dependencies.map(&:to_formula)
+    else
+      []
     end
-    self["xorg_formulae"]
+  rescue FormulaUnavailableError
+    []
   end
 
   def homebrew_extra_paths
@@ -62,11 +62,11 @@ module Superenv
     paths
   end
 
-  def self.x11_include_paths
+  def x11_include_paths
     xorg_recursive_deps.map(&:include).map(&:to_s)
   end
 
-  def self.x11_lib_paths
+  def x11_lib_paths
     xorg_recursive_deps.map(&:lib).map(&:to_s)
   end
 
@@ -98,7 +98,7 @@ module Superenv
     ENV.x11 = x11_installed?
   end
 
-  def self.x11_installed?
+  def x11_installed?
     xorg = Formula["linuxbrew/xorg/xorg"]
     return xorg.installed?
   rescue FormulaUnavailableError

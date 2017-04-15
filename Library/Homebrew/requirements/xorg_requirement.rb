@@ -2,7 +2,7 @@ require "requirement"
 
 class XorgRequirement < Requirement
   fatal true
-  default_formula "linuxbrew/xorg/xorg"
+  default_formula "x11"
 
   env { ENV.x11 }
 
